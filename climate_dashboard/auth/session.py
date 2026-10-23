@@ -120,7 +120,13 @@ class SupabaseAuth:
         try:
             response = self.client.auth.sign_in_with_password({"email": email, "password": password})
         except Exception as exc:  # Fehlertext ohne Passwort weitergeben
-            logger.info("Anmeldung fehlgeschlagen (%s)", type(exc).__name__)
+            # Nur Typ, HTTP-Status und Fehlercode protokollieren – nie E-Mail, Passwort oder Fehlertext.
+            logger.warning(
+                "Anmeldung fehlgeschlagen: %s (status=%s, code=%s)",
+                type(exc).__name__,
+                getattr(exc, "status", None),
+                getattr(exc, "code", None),
+            )
             raise _translate_auth_error(exc, "Anmeldung") from None
         return _session_from_response(response)
 

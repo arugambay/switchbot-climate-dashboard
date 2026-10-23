@@ -1,26 +1,27 @@
 # Farben und Formen entsprechen den Tokens in climate_dashboard/ui/theme.py (COLORS, RADIUS).
 [theme]
 base = "light"
-primaryColor = "#2563EB"
-backgroundColor = "#EEF3FA"
+# Tiefschwarz für Bedienelemente (Checkboxen, Schalter, Fortschritt); Markenblau für Links und Logo.
+primaryColor = "#111318"
+backgroundColor = "#F2F3F5"
 # Weiß: Streamlit nutzt diesen Wert u. a. für Eingabefelder und als Diagrammhintergrund.
 secondaryBackgroundColor = "#FFFFFF"
-textColor = "#0B1C30"
+textColor = "#111318"
 linkColor = "#2563EB"
-font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif"
-headingFont = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif"
-headingFontWeights = [700, 650, 650, 600, 600, 600]
-baseRadius = "14px"
-buttonRadius = "full"
-borderColor = "#DCE4EF"
+font = "Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+headingFont = "'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif"
+headingFontWeights = [500, 500, 600, 600, 600, 600]
+baseRadius = "12px"
+buttonRadius = "12px"
+borderColor = "#E6E8EC"
 showWidgetBorder = true
-dataframeBorderColor = "#E3E8EF"
-dataframeHeaderBackgroundColor = "#F6F8FC"
+dataframeBorderColor = "#E6E8EC"
+dataframeHeaderBackgroundColor = "#F7F8FA"
 
 [theme.sidebar]
-backgroundColor = "#F3F6FB"
-secondaryBackgroundColor = "#F6F8FC"
-borderColor = "#E3E8EF"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F7F8FA"
+borderColor = "#E6E8EC"
 
 [client]
 toolbarMode = "minimal"

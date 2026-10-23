@@ -358,3 +358,16 @@ def test_nav_active_css_only_allows_safe_href():
     css = theme.nav_active_css('analyse"]{}body{display:none')
     assert '[href="analysebodydisplaynone"]' in css
     assert '[href=""]' in theme.nav_active_css("")
+
+
+def test_studio_components_escape_and_handle_missing_values():
+    evil = "<script>x</script>"
+    hero = ui.status_hero_html("auffaellig", evil, evil, kicker=evil, chips=[(evil, evil)])
+    assert "<script>" not in hero and "cd-ring" in hero and "!" in hero
+    panel = ui.stat_panel_html([{"label": evil, "value": "3", "unit": "%", "sublabel": evil}])
+    assert "<script>" not in panel and "cd-stat" in panel
+    meter = str(ui.meter_html(20.0, 15.0, 25.0, accent=TEMPERATURE, thresholds=(22.0,), lo_label="Min", hi_label="Max"))
+    assert meter.count("cd-meter__bar--now") == 1 and "cd-meter__bar--threshold" in meter
+    # fehlende oder ungültige Spanne → keine Skala statt Fehler
+    assert str(ui.meter_html(None, 15.0, 25.0)) == ""
+    assert str(ui.meter_html(20.0, 25.0, 25.0)) == ""

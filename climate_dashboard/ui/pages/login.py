@@ -7,6 +7,8 @@ gespeichert, noch geloggt, noch angezeigt (das Formular wird nach dem Absenden g
 
 from __future__ import annotations
 
+import logging
+
 import streamlit as st
 
 from climate_dashboard.ui import components as ui
@@ -40,7 +42,9 @@ def render() -> None:
     except AuthError as exc:
         ui.callout("hinweis", "Anmeldung nicht möglich", str(exc))
         return
-    except Exception:  # noqa: BLE001 - keine Details (könnten Eingaben enthalten)
+    except Exception as exc:  # noqa: BLE001 - keine Details anzeigen (könnten Eingaben enthalten)
+        # Nur den Fehlertyp protokollieren (für „Manage app“ → Protokoll), keine Eingaben.
+        logging.getLogger(__name__).warning("Anmeldung: unerwarteter Fehler %s", type(exc).__name__)
         ui.callout("auffaellig", "Anmeldung fehlgeschlagen", "Der Anmeldedienst ist nicht erreichbar. Bitte später erneut versuchen.")
         return
     finally:
