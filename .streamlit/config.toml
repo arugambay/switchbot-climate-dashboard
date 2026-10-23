@@ -1,0 +1,35 @@
+# Farben und Formen entsprechen den Tokens in climate_dashboard/ui/theme.py (COLORS, RADIUS).
+[theme]
+base = "light"
+primaryColor = "#2563EB"
+backgroundColor = "#EEF3FA"
+# Weiß: Streamlit nutzt diesen Wert u. a. für Eingabefelder und als Diagrammhintergrund.
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0B1C30"
+linkColor = "#2563EB"
+font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif"
+headingFont = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif"
+headingFontWeights = [700, 650, 650, 600, 600, 600]
+baseRadius = "14px"
+buttonRadius = "full"
+borderColor = "#DCE4EF"
+showWidgetBorder = true
+dataframeBorderColor = "#E3E8EF"
+dataframeHeaderBackgroundColor = "#F6F8FC"
+
+[theme.sidebar]
+backgroundColor = "#F3F6FB"
+secondaryBackgroundColor = "#F6F8FC"
+borderColor = "#E3E8EF"
+
+[client]
+toolbarMode = "minimal"
+# Keine Tracebacks im Browser (öffentliche Berichtsseite!). Fehler stehen im Server-Log.
+showErrorDetails = "none"
+showSidebarNavigation = false
+
+[browser]
+gatherUsageStats = false
+
+[server]
+maxUploadSize = 200

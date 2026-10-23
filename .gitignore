@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Geheimnisse – niemals committen
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Private Messdaten, lokale Datenbanken, erzeugte Berichte
+data/private/
+# Lokale Datenbanken inkl. SQLite-Hilfsdateien (-wal, -shm, -journal) – enthalten Messdaten
+data/*.sqlite*
+data/*.db*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.db
+*.db-*
+reports_out/
+*.pdf
+# Echte SwitchBot-Exporte (synthetische Testdaten liegen unter tests/fixtures/)
+*.csv
+!tests/fixtures/*.csv
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.claude/
