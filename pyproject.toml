@@ -1,0 +1,21 @@
+[project]
+name = "switchbot-climate-dashboard"
+version = "0.1.0"
+description = "Klima-Analyseplattform für SwitchBot-Sensorexporte"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "slow: längere Tests (große Dateien)",
+    "supabase: benötigt eine echte Supabase-Verbindung (wird ohne Zugangsdaten übersprungen)",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
