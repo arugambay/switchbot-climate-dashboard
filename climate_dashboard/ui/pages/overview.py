@@ -170,19 +170,12 @@ def _render_room(room: Room, snap: dict[str, Any] | None, settings: AnalysisSett
     tz = settings.timezone
     latest, s7, s30 = snap["latest"], snap["s7"], snap["s30"]
     eps, q = snap["episodes"], snap["quality"]
+    assessment = snap["assessment"]
+    overall = assessment.overall
+    level = sel.OVERALL_LEVEL.get(overall.key, "neutral")
     sensor_note = f"„{snap['sensor'].name}“" + (
         f" (jüngste Daten von {snap['sensors']} Sensoren)" if snap["sensors"] > 1 else ""
     )
-    ui.context_bar(
-        [
-            ("Raum", room.name),
-            ("Sensor", sensor_note),
-            ("Letzte Messung", fmt_datetime(snap["latest_ts"], tz)),
-            ("Zeitabdeckung 30 Tage", fmt_percent(q.time_coverage_pct, 0)),
-        ]
-    )
-    if room.description:
-        st.caption(room.description)
 
     age = utcnow() - snap["last"].to_pydatetime()
     if age > STALE_AFTER:
@@ -193,72 +186,115 @@ def _render_room(room: Room, snap: dict[str, Any] | None, settings: AnalysisSett
             "Für aktuelle Werte einen neuen Export importieren.",
         )
 
-    ui.section_header("Letzte Messung")
-    # Hauptwerte groß, abgeleitete Größen kompakter daneben (gleiche Inhalte wie zuvor).
-    ui.metric_grid(
-        [
-            {"label": "Temperatur", "value": fmt_number(latest[TEMPERATURE], 1), "unit": "°C",
-             "accent": TEMPERATURE, "emphasis": True,
-             "sublabel": f"Ø 7 Tage {fmt_metric(s7[TEMPERATURE].mean, TEMPERATURE)} · "
-                         f"Ø 30 Tage {fmt_metric(s30[TEMPERATURE].mean, TEMPERATURE)}"},
-            {"label": "Relative Luftfeuchtigkeit", "value": fmt_number(latest[HUMIDITY], 0), "unit": "%",
-             "accent": HUMIDITY, "emphasis": True,
-             "sublabel": f"Ø 7 Tage {fmt_metric(s7[HUMIDITY].mean, HUMIDITY)} · "
-                         f"Ø 30 Tage {fmt_metric(s30[HUMIDITY].mean, HUMIDITY)}"},
-        ],
-        min_width=280,
-    )  # fmt: skip
-    ui.metric_grid(
-        [
-            {"label": "Taupunkt", "value": fmt_number(latest[DEW_POINT], 1), "unit": "°C", "accent": DEW_POINT,
-             "sublabel": f"Ø 30 Tage {fmt_metric(s30[DEW_POINT].mean, DEW_POINT)}"},
-            {"label": "Absolute Feuchte", "value": fmt_number(latest[ABS_HUMIDITY], 1), "unit": "g/m³",
-             "accent": ABS_HUMIDITY, "sublabel": f"Ø 30 Tage {fmt_metric(s30[ABS_HUMIDITY].mean, ABS_HUMIDITY)}"},
-            {"label": "VPD", "value": fmt_number(latest[VPD], 2), "unit": "kPa", "accent": VPD,
-             "sublabel": f"Ø 30 Tage {fmt_metric(s30[VPD].mean, VPD)}"},
-        ],
-        min_width=190,
-    )  # fmt: skip
+    # --- Ebene 1: Raumzustand (Hauptkarte) + die beiden Hauptmesswerte -----------------------
+    hero, temp_col, hum_col = st.columns([1.9, 1, 1], gap="small")
+    with hero:
+        st.html(
+            ui.status_hero_html(
+                level,
+                overall.label,
+                " ".join(overall.reasons),
+                kicker=f"Raumzustand · letzte 30 Tage · {room.name}",
+                chips=[
+                    ("Sensor", sensor_note),
+                    ("Letzte Messung", fmt_datetime(snap["latest_ts"], tz)),
+                    ("Zeitabdeckung", fmt_percent(q.time_coverage_pct, 0)),
+                ],
+            )
+        )
+    t30, h30 = s30[TEMPERATURE], s30[HUMIDITY]
+    with temp_col:
+        meter = ui.meter_html(
+            latest[TEMPERATURE], t30.min, t30.max, accent=TEMPERATURE,
+            lo_label=f"Min {fmt_metric(t30.min, TEMPERATURE)}", hi_label=f"Max {fmt_metric(t30.max, TEMPERATURE)}",
+        )  # fmt: skip
+        st.html(ui._wrap(ui.metric_card_html(
+            "Temperatur", fmt_number(latest[TEMPERATURE], 1), "°C", accent=TEMPERATURE, emphasis=True, extra=meter,
+            sublabel=f"Ø 7 Tage {fmt_metric(s7[TEMPERATURE].mean, TEMPERATURE)} · "
+                     f"Ø 30 Tage {fmt_metric(t30.mean, TEMPERATURE)} · Skala: Spanne der letzten 30 Tage",
+        )))  # fmt: skip
+    with hum_col:
+        meter = ui.meter_html(
+            latest[HUMIDITY], 0, 100, accent=HUMIDITY,
+            thresholds=(settings.humidity_elevated, settings.humidity_high),
+            lo_label="0 %", hi_label="100 %",
+        )  # fmt: skip
+        st.html(ui._wrap(ui.metric_card_html(
+            "Relative Luftfeuchtigkeit", fmt_number(latest[HUMIDITY], 0), "%", accent=HUMIDITY, emphasis=True,
+            extra=meter,
+            sublabel=f"Ø 7 Tage {fmt_metric(s7[HUMIDITY].mean, HUMIDITY)} · Ø 30 Tage {fmt_metric(h30.mean, HUMIDITY)} · "
+                     f"Striche: erhöht ab {fmt_number(settings.humidity_elevated)} %, hoch ab {fmt_number(settings.humidity_high)} %",
+        )))  # fmt: skip
+    if room.description:
+        st.caption(room.description)
 
-    assessment = snap["assessment"]
-    overall = assessment.overall
-    ui.section_header("Einschätzung der letzten 30 Tage")
-    left, right = st.columns([3, 2], gap="medium")
-    with left:
-        ui.callout(sel.OVERALL_LEVEL.get(overall.key, "neutral"), overall.label, " ".join(overall.reasons))
+    # --- Ebene 2: Verlauf + abgeleitete Größen -------------------------------------------------
+    chart_col, side_col = st.columns([2.2, 1], gap="small")
+    with chart_col:
+        ui.section_header("Verlauf der letzten 7 Tage", "Temperatur und relative Feuchte · Lücken bleiben sichtbar")
+        fig = charts.timeseries_chart(
+            snap["series"],
+            [TEMPERATURE, HUMIDITY],
+            tz=tz,
+            thresholds=charts.default_thresholds(settings),
+            gap_threshold_s=snap["gap_threshold_s"],
+            panel_height=190,
+        )
+        ui.render_chart(fig, key=f"ov_ts_{room.id}")
+        sel.nav_link("analyse", "Ausführliche Analyse öffnen")
+    with side_col:
+        ui.section_header("Letzte Messung", "Abgeleitete Größen")
+        ui.metric_grid(
+            [
+                {"label": "Taupunkt", "value": fmt_number(latest[DEW_POINT], 1), "unit": "°C", "accent": DEW_POINT,
+                 "sublabel": f"Ø 30 Tage {fmt_metric(s30[DEW_POINT].mean, DEW_POINT)}"},
+                {"label": "Absolute Feuchte", "value": fmt_number(latest[ABS_HUMIDITY], 1), "unit": "g/m³",
+                 "accent": ABS_HUMIDITY,
+                 "sublabel": f"Ø 30 Tage {fmt_metric(s30[ABS_HUMIDITY].mean, ABS_HUMIDITY)}"},
+                {"label": "VPD", "value": fmt_number(latest[VPD], 2), "unit": "kPa", "accent": VPD,
+                 "sublabel": f"Ø 30 Tage {fmt_metric(s30[VPD].mean, VPD)}"},
+            ],
+            min_width=9999,  # einspaltig in der Seitenspalte
+        )  # fmt: skip
+
+    # --- Ebene 3: Befunde + Feuchtephasen/Entwicklung --------------------------------------
+    find_col, epi_col = st.columns([1.6, 1], gap="small")
+    with find_col:
+        ui.section_header("Befunde der letzten 30 Tage", "Nach Dringlichkeit – aus Messwerten abgeleitet, ohne Ursachenbehauptung")
         top = sel.finding_dicts(assessment.findings, top=3, skip_ok=True)
         if top:
             ui.finding_list(top)
-    with right:
-        ui.metric_grid(
+        else:
+            ui.callout("ok", "Keine auffälligen Befunde", "In den letzten 30 Tagen gab es keine Auffälligkeiten.")
+    with epi_col:
+        ui.section_header("Feuchtephasen", f"Zusammenhängende Zeiten ab {fmt_number(eps.threshold)} % rF")
+        st.html(ui.stat_panel_html(
             [
-                {"label": "Feuchtephasen (30 Tage)", "value": str(eps.count_total), "accent": HUMIDITY,
+                {"label": "Feuchtephasen (30 Tage)", "value": str(eps.count_total),
                  "sublabel": f"davon {eps.count_sustained} anhaltend · ab {fmt_number(eps.threshold)} % rF"},
                 {"label": "Längste Feuchtephase", "value": fmt_duration(eps.longest_duration_s) if eps.longest else "–",
                  "sublabel": f"am {fmt_datetime(eps.longest.start, tz)}" if eps.longest else "keine Phase"},
                 {"label": "Zeitabdeckung (30 Tage)", "value": fmt_number(q.time_coverage_pct, 0), "unit": "%",
                  "sublabel": f"Messvollständigkeit {fmt_percent(q.completeness_pct)} · {q.gap_count} Lücke(n)"},
             ],
-            min_width=9999,  # einspaltig in der rechten Spalte
-        )  # fmt: skip
-
-    ui.section_header("Verlauf der letzten 7 Tage")
-    fig = charts.timeseries_chart(
-        snap["series"],
-        [TEMPERATURE, HUMIDITY],
-        tz=tz,
-        thresholds=charts.default_thresholds(settings),
-        gap_threshold_s=snap["gap_threshold_s"],
-        panel_height=200,
-    )
-    ui.render_chart(fig, key=f"ov_ts_{room.id}")
-    sel.nav_link("analyse", "Ausführliche Analyse öffnen")
+            accent=HUMIDITY,
+        ))  # fmt: skip
 
     _render_trends(snap)
 
 
+def _header_actions() -> None:
+    sel.nav_link("berichte", "Bericht erstellen")
+    sel.nav_link("import", "Daten importieren")
+
+
 def _body() -> None:
-    ui.page_header("Übersicht", "Aktuelle Lage aller Räume auf einen Blick.", eyebrow="Dashboard")
+    ui.page_header(
+        "Raumklima-Übersicht",
+        "Zustand, Messwerte und Entwicklung Ihrer Räume – ausgewertet aus den importierten SwitchBot-Daten.",
+        actions=_header_actions,
+        eyebrow="Dashboard",
+    )
     repo = state.repo()
     rooms = repo.list_rooms()
     if not rooms:

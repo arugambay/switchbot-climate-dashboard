@@ -75,8 +75,15 @@ def load_settings(env: dict[str, str] | None = None) -> Settings:
         return value or None
 
     sqlite_path = get("SQLITE_PATH")
+    supabase_url = get("SUPABASE_URL")
+    if supabase_url:
+        # Das Supabase-Dashboard zeigt die API-Adresse mit "/rest/v1/" an; der Client braucht
+        # nur die Projektadresse. Häufigen Kopierfehler daher still korrigieren.
+        supabase_url = supabase_url.rstrip("/")
+        if supabase_url.endswith("/rest/v1"):
+            supabase_url = supabase_url[: -len("/rest/v1")]
     return Settings(
-        supabase_url=get("SUPABASE_URL"),
+        supabase_url=supabase_url,
         supabase_anon_key=get("SUPABASE_ANON_KEY"),
         app_base_url=(get("APP_BASE_URL") or "").rstrip("/") or None,
         default_timezone=get("DEFAULT_TIMEZONE") or "Europe/Berlin",

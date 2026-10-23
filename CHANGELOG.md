@@ -5,6 +5,11 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 ## [0.1.0] – unveröffentlicht
 
 ### Geändert
+- Neues „Studio“-Design (ersetzt das Glas-Design; nur Darstellung): hellgrauer Grund, weiße Karten
+  mit großen Rundungen, Serifen-Seitentitel, neu aufgebaute Übersicht mit Raumzustand-Hauptkarte,
+  Streifen-Skalen für Temperatur und Feuchte, Befundliste nach Dringlichkeit, kompakte
+  Feuchtephasen-Karte, Pill-Reiter, Primäraktionen in Tiefschwarz. Berechnungen, Warnregeln,
+  Import, Speicherung und Freigaben unverändert.
 - UI/UX-Redesign (nur Darstellung, keine fachlichen Änderungen): neues Designsystem mit kühlem
   Grundton, weißen Karten, Versal-Labels, großen Kennzahlen mit Farbpunkt je Messgröße,
   Warnungen mit Akzentkante, Diagrammen als Karten, hervorgehobener aktiver Navigation,

@@ -86,11 +86,11 @@ def page_header(
     if actions is None:
         _render(page_header_html(title, subtitle, eyebrow=eyebrow))
         return
-    left, right = st.columns([3, 1], vertical_alignment="bottom")
+    left, right = st.columns([1.5, 1], vertical_alignment="bottom")
     with left:
         _render(page_header_html(title, subtitle, eyebrow=eyebrow))
     with right:
-        with st.container(horizontal=True, horizontal_alignment="right"):
+        with st.container(horizontal=True, horizontal_alignment="right", gap="xsmall"):
             actions()
 
 
@@ -166,14 +166,16 @@ def metric_card_html(
     card: bool = True,
     accent: str | None = None,
     emphasis: bool = False,
+    extra: Markup | None = None,
 ) -> str:
     """Kennzahl-Karte. ``value`` darf bereits formatiert sein (str) oder eine Zahl
     (wird mit ``decimals`` deutsch formatiert). ``delta`` ist ein vorformatierter Text
     (z. B. ``fmt_delta(...)``) – Veränderungen sind beim Raumklima nicht per se gut/schlecht
     und werden daher neutral dargestellt.
 
-    ``accent``: Messgröße (z. B. ``"temperature"``) → farbiger Punkt in der Farbe, die auch die
-    Diagramme verwenden. ``emphasis``: größere Ziffern für die wichtigsten Kennzahlen einer Seite."""
+    ``accent``: Messgröße (z. B. ``"temperature"``) → runder Farb-Chip in der Farbe, die auch
+    die Diagramme verwenden. ``emphasis``: größere Ziffern für die wichtigsten Kennzahlen einer
+    Seite. ``extra``: zusätzliches, intern erzeugtes Markup (z. B. ``meter_html``) unter dem Wert."""
     if isinstance(value, str | Markup):
         value_text = esc(value)
     else:
@@ -189,14 +191,24 @@ def metric_card_html(
         + (f" cd-metric--{lvl}" if lvl else "")
         + (" cd-metric--lg" if emphasis else "")
     )
-    dot = ""
-    if accent and accent in theme.METRIC_COLORS:
-        dot = f'<span class="cd-metric__dot" style="--cd-dot:{theme.METRIC_COLORS[accent]}" aria-hidden="true"></span>'
+    dot = chip = ""
+    color = theme.METRIC_COLORS.get(accent or "")
+    style = f' style="--cd-dot:{color}"' if color else ""
+    if color:
+        dot = '<span class="cd-metric__dot" aria-hidden="true"></span>'
+        chip = '<span class="cd-metric__chip" aria-hidden="true"></span>'
+    # Rechts oben: Farb-Chip der Messgröße, sonst das Status-Badge; mit beiden wandert das Badge
+    # unter den Wert.
+    corner = chip or badge
     parts = [
-        f'<div class="{classes}">',
-        f'<div class="cd-metric__label"><span>{dot}{esc(label)}</span>{badge}</div>',
+        f'<div class="{classes}"{style}>',
+        f'<div class="cd-metric__label"><span>{dot}{esc(label)}</span>{corner}</div>',
         f'<div class="cd-metric__value">{value_text}{unit_html}</div>',
     ]
+    if chip and badge:
+        parts.append(f'<div class="cd-metric__status">{badge}</div>')
+    if extra is not None:
+        parts.append(str(extra))
     if delta:
         parts.append(f'<div class="cd-metric__delta">{esc(delta)}</div>')
     if sublabel:
@@ -224,6 +236,101 @@ def metric_card(
             )
         )
     )
+
+
+def meter_html(
+    value: float | None,
+    lo: float | None,
+    hi: float | None,
+    *,
+    accent: str | None = None,
+    thresholds: Sequence[float] = (),
+    lo_label: str | None = None,
+    hi_label: str | None = None,
+    bars: int = 44,
+) -> Markup:
+    """Streifen-Skala: zeigt, wo ``value`` innerhalb von ``lo``…``hi`` liegt. Streifen bis zum
+    Wert sind in der Messgrößen-Farbe gefüllt (heller werdend zum Anfang), der Wert selbst ist
+    markiert, ``thresholds`` (z. B. Feuchte-Schwellen) erscheinen als dunklere Streifen.
+    Rein darstellend – es wird kein neuer Kennwert berechnet."""
+    color = theme.METRIC_COLORS.get(accent or "", theme.COLORS["text_subtle"])
+    if value is None or lo is None or hi is None or is_missing(value) or is_missing(lo) or is_missing(hi) or hi <= lo:
+        return Markup("")
+
+    def index(x: float) -> int:
+        return int(round((min(max(float(x), lo), hi) - lo) / (hi - lo) * (bars - 1)))
+
+    now = index(value)
+    marks = {index(t) for t in thresholds if lo < t < hi}
+    spans = []
+    for i in range(bars):
+        if i == now:
+            cls = "cd-meter__bar cd-meter__bar--now"
+            style = ""
+        elif i in marks:
+            cls, style = "cd-meter__bar cd-meter__bar--threshold", ""
+        elif i < now:
+            # Füllung wird zum aktuellen Wert hin kräftiger
+            alpha = 0.28 + 0.72 * (i + 1) / max(now, 1)
+            cls, style = "cd-meter__bar cd-meter__bar--on", f' style="opacity:{alpha:.2f}"'
+        else:
+            cls, style = "cd-meter__bar", ""
+        spans.append(f'<span class="{cls}"{style}></span>')
+    scale = ""
+    if lo_label or hi_label:
+        scale = f'<div class="cd-meter__scale"><span>{esc(lo_label or "")}</span><span>{esc(hi_label or "")}</span></div>'
+    return Markup(
+        f'<div class="cd-meter" style="--cd-dot:{color}" role="img" aria-label="Skala">'
+        f'<div class="cd-meter__bars">{"".join(spans)}</div>{scale}</div>'
+    )
+
+
+_RING_GLYPHS = {"ok": "✓", "hinweis": "!", "auffaellig": "!", "info": "i", "neutral": "–"}
+
+
+def status_hero_html(
+    level: Any,
+    title: str,
+    text: str | None = None,
+    *,
+    kicker: str | None = None,
+    chips: Sequence[tuple[str, Any]] = (),
+) -> str:
+    """Hauptkarte für den Raumzustand: Stufe als Ring mit Symbol, Titel in der Statusfarbe,
+    Begründung und Kontext-Chips (z. B. Sensor, letzte Messung). Bewusst ohne Zahl im Ring –
+    es gibt keinen Score."""
+    lvl = theme.normalize_level(level)
+    tokens = theme.STATUS[lvl]
+    glyph = _RING_GLYPHS.get(lvl, "–")
+    # Reines CSS (st.html entfernt SVG): Ring mit Statusfarbe und Symbol in der Mitte.
+    ring = f'<div class="cd-ring" aria-hidden="true"><span class="cd-ring__glyph">{glyph}</span></div>'
+    chip_html = "".join(f'<span class="cd-chip">{esc(k)} <b>{esc(v)}</b></span>' for k, v in chips)
+    kicker_html = f'<p class="cd-hero__kicker">{esc(kicker)}</p>' if kicker else ""
+    text_html = f'<p class="cd-hero__text">{esc(text)}</p>' if text else ""
+    meta_html = f'<div class="cd-hero__meta">{chip_html}</div>' if chip_html else ""
+    return _wrap(
+        f'<section class="cd-hero" lang="de" style="--cd-hero-solid:{tokens["solid"]};--cd-hero-fg:{tokens["fg"]}" '
+        f'aria-label="Raumzustand"><div>{kicker_html}<h2 class="cd-hero__title">{esc(title)}</h2>'
+        f"{text_html}{meta_html}</div>{ring}</section>"
+    )
+
+
+def stat_panel_html(rows: Sequence[Mapping[str, Any]], *, accent: str | None = None) -> str:
+    """Kompakte Kennzahlen-Karte: mehrere Zeilen aus Bezeichnung (+ Unterzeile) links und Wert
+    (+ Einheit) rechts – für zusammengehörige Werte statt vieler Einzelkarten.
+    ``rows``: Dicts mit ``label``, ``value``, optional ``unit`` und ``sublabel``."""
+    color = theme.METRIC_COLORS.get(accent or "")
+    style = f' style="--cd-dot:{color}"' if color else ""
+    items = []
+    for r in rows:
+        value = esc(r.get("value"))
+        unit = f'<span class="cd-stat__unit">{NARROW_NBSP}{esc(r["unit"])}</span>' if r.get("unit") and value != MISSING else ""
+        sub = f'<span class="cd-stat__sub">{esc(r["sublabel"])}</span>' if r.get("sublabel") else ""
+        items.append(
+            f'<li class="cd-stat"><div class="cd-stat__text"><span class="cd-stat__label">{esc(r.get("label"))}</span>'
+            f'{sub}</div><div class="cd-stat__value">{value}{unit}</div></li>'
+        )
+    return _wrap(f'<ul class="cd-stats"{style}>{"".join(items)}</ul>')
 
 
 def metric_grid_html(cards: Sequence[Mapping[str, Any]], *, min_width: int = 190) -> str:
@@ -377,9 +484,11 @@ def finding_list_html(findings: Iterable[Any]) -> str:
         cat_label = _CATEGORY_LABELS.get(str(cat).lower(), cat) if cat else None
         cat_html = f'<div class="cd-finding__category">{esc(cat_label)}</div>' if cat_label else ""
         items.append(
-            f'<li class="cd-finding cd-finding--{lvl}">{status_badge_html(lvl)}'
+            f'<li class="cd-finding cd-finding--{lvl}">'
+            f'<span class="cd-finding__icon" aria-hidden="true">{theme.STATUS_ICONS.get(lvl, "•")}</span>'
             f'<div>{cat_html}<p class="cd-finding__text">{esc(_finding_get(fnd, "text") or "")}</p>'
-            f"{_evidence_html(_finding_get(fnd, 'evidence'))}</div></li>"
+            f"{_evidence_html(_finding_get(fnd, 'evidence'))}</div>"
+            f'<div class="cd-finding__badge">{status_badge_html(lvl)}</div></li>'
         )
     if not items:
         return ""

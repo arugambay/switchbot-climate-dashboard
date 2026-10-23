@@ -49,7 +49,8 @@ REPORT_CSS = """
   padding: var(--cd-space-6) var(--cd-space-6) var(--cd-space-5); box-shadow: var(--cd-shadow-md); }
 .cd-report-hero__eyebrow { font-size: var(--cd-text-xs); font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
   color: var(--cd-primary); margin: 0 0 var(--cd-space-2); }
-.cd-report-hero__title { font-size: 2rem; font-weight: 680; letter-spacing: -0.02em; line-height: 1.15; margin: 0;
+.cd-report-hero__title { font-family: var(--cd-font-display); font-size: 2.25rem; font-weight: 500;
+  letter-spacing: -0.02em; line-height: 1.12; margin: 0;
   overflow-wrap: anywhere; }
 .cd-report-hero__room { font-size: var(--cd-text-lg); color: var(--cd-text-muted); margin: var(--cd-space-2) 0 0;
   overflow-wrap: anywhere; }
@@ -69,7 +70,8 @@ REPORT_CSS = """
   margin: var(--cd-space-4) 0; }
 .cd-report-verdict__label { font-size: var(--cd-text-xs); font-weight: 650; letter-spacing: .07em; text-transform: uppercase;
   margin: 0 0 var(--cd-space-1); }
-.cd-report-verdict__title { font-size: var(--cd-text-xl); font-weight: 650; margin: 0 0 var(--cd-space-2); }
+.cd-report-verdict__title { font-family: var(--cd-font-display); font-size: 1.5rem; font-weight: 500;
+  margin: 0 0 var(--cd-space-2); }
 .cd-report-verdict__text { font-size: var(--cd-text-md); margin: 0; line-height: 1.6; }
 .cd-report-verdict--ok { background: var(--cd-ok-bg); border-color: var(--cd-ok-border); }
 .cd-report-verdict--ok .cd-report-verdict__label, .cd-report-verdict--ok .cd-report-verdict__title { color: var(--cd-ok-fg); }

@@ -100,3 +100,9 @@ def test_factory_supabase_uses_user_jwt_and_anon_key():
     public = factory.get_public_repository(s)
     assert public.user_id is None
     assert public.client.options.headers["Authorization"] == f"Bearer {anon}"
+
+
+def test_supabase_url_copied_with_rest_suffix_is_normalized():
+    for raw in ("https://abc.supabase.co/rest/v1/", "https://abc.supabase.co/rest/v1", "https://abc.supabase.co/"):
+        s = load_settings({"SUPABASE_URL": raw, "SUPABASE_ANON_KEY": "anon"})
+        assert s.supabase_url == "https://abc.supabase.co"
